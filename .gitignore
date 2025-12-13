@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+env/
+venv/
+.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Dati e output
+data/
+outputs/
+*.csv
+*.xlsx
+
+# Configurazioni sensibili
+config.py
+
+# Log files
+*.log
+
+# VSCode settings
+.vscode/
+
+desktop.ini
