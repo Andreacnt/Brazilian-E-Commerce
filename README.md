@@ -9,6 +9,7 @@
 ## Descrizione
 
 Questo progetto contiene un'analisi completa del dataset **Olist**, con pulizia dati, feature engineering e analisi statistica esplorativa.
+Dataset: https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
 
 ---
 
