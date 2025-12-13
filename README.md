@@ -1,16 +1,8 @@
 # Brazilian-E-Commerce
 # Analisi Esplorativa E-commerce Brasiliano (Olist)
 
-\[![Python](https://img.shields.io/badge/python-3.8%2B-blue)
-
-[ (https://img.shields.io/badge/python-3.8%2B-blue)](https://img.shields.io/badge/python-3.8%2B-blue "url-only")
-
-\]([https://www.python.org/](https://www.python.org/))\
-\[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-
-[ (https://img.shields.io/badge/License-MIT-green.svg)](https://img.shields.io/badge/License-MIT-green.svg "url-only")
-
-\]([https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT))
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+ ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 ---
 
@@ -89,4 +81,4 @@ Questo progetto è rilasciato sotto licenza [MIT](https://opensource.org/license
 
 ---
 
-_Creato da \[Andrea Conti\]_
+_Creato da Andrea Conti_
