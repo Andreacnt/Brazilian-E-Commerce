@@ -111,7 +111,7 @@ def rimuovi_duplicati_avanzato(df, subset):
     return df
 
 # =========================
-# AGGREGAZIONI
+# AGGREGAZIONI (SOLO BRL)
 # =========================
 
 def aggrega_pagamenti(df_pagamenti):
@@ -119,7 +119,6 @@ def aggrega_pagamenti(df_pagamenti):
     Aggrega pagamenti a livello di ordine, usando le colonne tradotte:
     - 'id_ordine'
     - 'valore_pagamento' (BRL)
-    - 'valore_pagamento_eur' se esiste
     """
     if df_pagamenti.empty:
         logger.warning("aggregazione pagamenti: df vuoto")
@@ -135,8 +134,6 @@ def aggrega_pagamenti(df_pagamenti):
     }
     if "sequenza_pagamento" in df.columns:
         agg_dict["sequenza_pagamento"] = "nunique"
-    if "valore_pagamento_eur" in df.columns:
-        agg_dict["valore_pagamento_eur"] = "sum"
 
     agg = (
         df.groupby("id_ordine", as_index=False)
@@ -144,10 +141,9 @@ def aggrega_pagamenti(df_pagamenti):
           .rename(columns={
               "valore_pagamento": "valore_pagamento_brl",
               "sequenza_pagamento": "n_pagamenti",
-              "valore_pagamento_eur": "valore_pagamento_eur"
           })
     )
-    logger.info(f"Pagamenti aggregati con shape {agg.shape}")
+    logger.info(f"Pagamenti aggregati (solo BRL) con shape {agg.shape}")
     return agg
 
 
@@ -157,7 +153,6 @@ def aggrega_order_items(df_items):
     - 'id_articolo_ordine'
     - 'prezzo' (BRL)
     - 'costo_spedizione' (BRL)
-    - versioni in EUR se presenti
     """
     if df_items.empty:
         logger.warning("aggregazione order_items: df vuoto")
@@ -175,10 +170,6 @@ def aggrega_order_items(df_items):
         agg_dict["prezzo"] = "sum"
     if "costo_spedizione" in df.columns:
         agg_dict["costo_spedizione"] = "sum"
-    if "prezzo_eur" in df.columns:
-        agg_dict["prezzo_eur"] = "sum"
-    if "costo_spedizione_eur" in df.columns:
-        agg_dict["costo_spedizione_eur"] = "sum"
 
     agg = (
         df.groupby("id_ordine", as_index=False)
@@ -187,16 +178,13 @@ def aggrega_order_items(df_items):
               "id_articolo_ordine": "n_articoli",
               "prezzo": "totale_prezzo_brl",
               "costo_spedizione": "totale_spedizione_brl",
-              "prezzo_eur": "totale_prezzo_eur",
-              "costo_spedizione_eur": "totale_spedizione_eur",
           })
     )
 
-    # totale_ordine_eur se abbiamo sia prezzo_eur che spedizione_eur
-    if "totale_prezzo_eur" in agg.columns and "totale_spedizione_eur" in agg.columns:
-        agg["totale_ordine_eur"] = agg["totale_prezzo_eur"].fillna(0) + agg["totale_spedizione_eur"].fillna(0)
+    # totale ordine in BRL (prodotti + spedizione)
+    agg["totale_ordine_brl"] = agg["totale_prezzo_brl"].fillna(0) + agg["totale_spedizione_brl"].fillna(0)
 
-    logger.info(f"Order_items aggregati con shape {agg.shape}")
+    logger.info(f"Order_items aggregati (solo BRL) con shape {agg.shape}")
     return agg
 
 
@@ -273,16 +261,20 @@ def segmenta_clienti(df):
     Segmentazione RFM semplificata:
     - recency: giorni dall'ultimo acquisto
     - frequency: numero ordini
-    - monetary: somma colonna_valore (EUR se disponibile)
+    - monetary: somma in BRL (totale_ordine_brl o valore_pagamento_brl)
     """
     if "id_cliente" not in df.columns or "id_ordine" not in df.columns or "data_acquisto" not in df.columns:
         logger.warning("segmenta_clienti: colonne minime mancanti")
         return df, None
 
-    colonna_valore = "totale_ordine_eur" if "totale_ordine_eur" in df.columns else "valore_pagamento_eur"
-    if colonna_valore not in df.columns:
-        logger.warning("segmenta_clienti: colonna monetaria non trovata, uso 0")
-        df[colonna_valore] = 0.0
+    if "totale_ordine_brl" in df.columns:
+        colonna_valore = "totale_ordine_brl"
+    elif "valore_pagamento_brl" in df.columns:
+        colonna_valore = "valore_pagamento_brl"
+    else:
+        logger.warning("segmenta_clienti: colonna monetaria BRL non trovata, uso 0")
+        df["valore_monetario_tmp"] = 0.0
+        colonna_valore = "valore_monetario_tmp"
 
     ref_date = df["data_acquisto"].max() + pd.Timedelta(days=1)
 
@@ -300,7 +292,7 @@ def segmenta_clienti(df):
     df_seg = df.merge(rfm[["id_cliente", "segmento"]], on="id_cliente", how="left")
 
     stats_segmentazione = rfm["segmento"].value_counts()
-    logger.info("Segmentazione clienti (conteggio per segmento):\n%s", stats_segmentazione.to_string())
+    logger.info("Segmentazione clienti (BRL) (conteggio per segmento):\n%s", stats_segmentazione.to_string())
     return df_seg, stats_segmentazione
 
 # =========================
@@ -316,17 +308,20 @@ def salva_dataset(df, nome_file):
 
 
 def stampa_statistiche_finali(df_ordini):
-    """Stampa statistiche base sul valore monetario ordine."""
-    colonna_valore = "totale_ordine_eur" if "totale_ordine_eur" in df_ordini.columns else "valore_pagamento_eur"
-    if colonna_valore not in df_ordini.columns:
-        logger.warning("stampa_statistiche_finali: colonna valore non trovata")
+    """Stampa statistiche base sul valore monetario ordine in BRL."""
+    if "totale_ordine_brl" in df_ordini.columns:
+        colonna_valore = "totale_ordine_brl"
+    elif "valore_pagamento_brl" in df_ordini.columns:
+        colonna_valore = "valore_pagamento_brl"
+    else:
+        logger.warning("stampa_statistiche_finali: nessuna colonna valore BRL trovata")
         return
 
     serie = df_ordini[colonna_valore].dropna()
-    logger.info(f"Statistiche per {colonna_valore}:")
+    logger.info(f"Statistiche per {colonna_valore} (BRL):")
     logger.info("count: %d", serie.count())
-    logger.info("mean: %.2f", serie.mean())
-    logger.info("median: %.2f", serie.median())
-    logger.info("std: %.2f", serie.std())
-    logger.info("min: %.2f", serie.min())
-    logger.info("max: %.2f", serie.max())
+    logger.info("mean: %.2f BRL", serie.mean())
+    logger.info("median: %.2f BRL", serie.median())
+    logger.info("std: %.2f BRL", serie.std())
+    logger.info("min: %.2f BRL", serie.min())
+    logger.info("max: %.2f BRL", serie.max())
